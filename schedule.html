@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>スケジュール作成</title>
+    <style>
+        body {
+            display: flex;
+            background-color: #ffffff;
+			   gap:100px;
+        }
+
+		 .inputform {
+			 display: flex;
+			 flex-direction: column;
+			 flex: 1;
+			 align-items: center;
+			 margin-right: 20px;
+			 overflow: hidden;
+			 transition: max-height 0.3s ease-out;
+			 max-height: 500px;
+		 }
+
+		 .inputform.collapsed {
+			 max-height: 0;
+			 margin-bottom: 0;
+		 }
+
+		 .list {
+			 flex: 1; /* .listが全体の幅を占める */
+			 overflow: auto; /* もし内容が多い場合にスクロール可能にする */
+		 }
+
+		 .collapse-button {
+			 background-color: #007bff;
+			 color: #ffffff;
+			 border: none;
+			 border-radius: 4px;
+			 padding: 10px 15px;
+			 cursor: pointer;
+			 margin-top: 10px;
+		 }
+
+		 .collapse-button:hover {
+			 background-color: #0056b3;
+		 }
+
+
+
+		  .inputform input[type="time"]{
+			   width: 45%;
+			   padding:10px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 16px;
+		  }
+        .inputform input[type="text"],
+        .inputform input[type="number"],
+        .inputform button,
+        .inputform select {
+            width: 100%;
+			   padding:10px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+
+        .inputform button {
+            background-color: #007bff;
+            color: #ffffff;
+            /*cursor: pointer;*/
+        }
+
+        .inputform button:hover {
+            background-color: #0056b3;
+        }
+		  .input-time{
+			  display:flex;
+			  width:100%;
+			  align-items:center;
+			  justify-content:center;
+		  }
+        #todo-items li {
+            list-style-type: none;
+            margin-bottom: 10px;
+        }
+
+        .time-slot div {
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: #007bff;
+            color: #ffffff;
+            border-radius: 4px;
+        }
+
+        @media (max-width: 768px) {
+            .contain {
+                flex-direction: column;
+            }
+
+            .inputform,
+            .list {
+                width: 100%;
+                margin-right: 0;
+            }
+        }
+
+    </style>
+</head>
+
+<body>
+
+        <div class="inputform">
+			  
+            <input type="text" id="todo-input" placeholder="やることを入力">
+            <input type="number" id="duration" placeholder="所要時間（分）">
+            <button onclick="addTodo()">追加</button>
+			   <div class="input-time">
+                <input type="time" id="start-time" placeholder="開始時間">〜<input type="time" id="end-time" placeholder="終了時間" readonly>
+            </div>
+            <select id="select-todo"></select>
+            <button onclick="addToSchedule()">スケジュールに追加</button>
+        </div>
+        <div class="list">
+            <button class="collapse-button" onclick="toggleInputForm()">折りたたむ/展開</button>
+            <div id="todo-list">
+                <ul id="todo-items"></ul>
+            </div>
+            <div id="schedule">
+                <div class="time-slot">
+                </div>
+            </div>
+        </div>
+    <script>
+        const todoList = [];
+        const scheduleItems = [];
+		 let isCollapsed = false;
+
+		 function toggleInputForm() {
+			 const inputForm = document.querySelector('.inputform');
+			 const list = document.querySelector('.list');
+
+			 isCollapsed = !isCollapsed;
+
+			 if (isCollapsed) {
+				 inputForm.classList.add('collapsed');
+				 list.style.flex = '1';
+				 inputForm.style.flex = '0'; // 折りたたんだときは、.inputformが0のflexを持つようにする
+			 } else {
+				 inputForm.classList.remove('collapsed');
+				 list.style.flex = '1';
+				 inputForm.style.flex = '1'; // 展開したときは、.inputformが1のflexを持つようにする
+			 }
+		 }
+
+		 function addTodo() {
+            const todoInput = document.getElementById('todo-input');
+            const duration = document.getElementById('duration');
+            const todoItems = document.getElementById('todo-items');
+
+            if (!todoInput.value || !duration.value) return;
+
+            const li = document.createElement('li');
+            li.textContent = `・${todoInput.value} (${duration.value}分)`;
+            todoItems.appendChild(li);
+
+            const todo = {
+                todo: todoInput.value,
+                duration: parseInt(duration.value, 10),
+                startTime: null
+            };
+
+            todoList.push(todo);
+
+            updateSelectOptions();
+
+            todoInput.value = '';
+            duration.value = '';
+        }
+
+        function updateSelectOptions() {
+            const selectTodo = document.getElementById('select-todo');
+            const lastIndex = todoList.length - 1;
+
+            const option = document.createElement('option');
+            option.value = lastIndex;
+            option.textContent = `${todoList[lastIndex].todo} (${todoList[lastIndex].duration}分)`;
+            selectTodo.appendChild(option);
+        }
+
+       function addToSchedule() {
+			 const startTime = document.getElementById('start-time').value;
+			 const selectedTodoIndex = document.getElementById('select-todo').value;
+
+			 if (!startTime || selectedTodoIndex === '') return;
+
+			 const selectedTodo = {...todoList[selectedTodoIndex]}; // タスクを複製
+
+			 selectedTodo.startTime = startTime;
+			 scheduleItems.push(selectedTodo);
+
+			 // Sort schedule items by start time
+			 scheduleItems.sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+			 renderSchedule();
+		 }
+
+
+        function renderSchedule() {
+            const timeSlot = document.querySelector('.time-slot');
+            timeSlot.innerHTML = ''; // Clear existing schedule
+
+            scheduleItems.forEach(item => {
+                const div = document.createElement('div');
+                div.textContent = `${item.startTime}〜${calculateEndTime(item.startTime, item.duration)}　${item.todo}`;
+                timeSlot.appendChild(div);
+            });
+        }
+
+        function calculateEndTime(startTime, duration) {
+            const start = new Date(`1970-01-01T${startTime}`);
+            const end = new Date(start.getTime() + duration * 60000);
+
+            const endTimeHour = end.getHours().toString().padStart(2, '0');
+            const endTimeMinute = end.getMinutes().toString().padStart(2, '0');
+            return `${endTimeHour}:${endTimeMinute}`;
+        }
+
+        document.getElementById('start-time').addEventListener('input', function () {
+            const startTime = this.value;
+            const selectedTodoIndex = document.getElementById('select-todo').value;
+            const duration = todoList[selectedTodoIndex]?.duration || 0;
+
+            document.getElementById('end-time').value = calculateEndTime(startTime, duration);
+        });
+		  document.getElementById('select-todo').addEventListener('input', function () {
+            const startTime = document.getElementById('start-time').value;
+            const selectedTodoIndex = document.getElementById('select-todo').value;
+            const duration = todoList[selectedTodoIndex]?.duration || 0;
+
+            document.getElementById('end-time').value = calculateEndTime(startTime, duration);
+        });
+
+    </script>
+
+</body>
+
+</html>
